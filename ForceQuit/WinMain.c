@@ -16,6 +16,8 @@ TCHAR* startupFilePath = NULL;
 IShellLink* iShellLink;
 IPersistFile* iPersistFile;
 
+HANDLE mutex;
+
 bool GetIsLaunchingOnStartup()
 {
 	DWORD attrib = GetFileAttributes(startupFilePath);
@@ -98,6 +100,7 @@ void Cleanup()
 	Shell_NotifyIconA(NIM_DELETE, &notify);
 	DestroyWindow(hwnd);
 	free(startupFilePath);
+	ReleaseMutex(mutex);
 }
 
 BOOL WINAPI ConsoleHandler(DWORD ctrlType)
@@ -111,7 +114,7 @@ BOOL WINAPI ConsoleHandler(DWORD ctrlType)
 	return FALSE;
 }
 
-LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
 	{
@@ -159,6 +162,10 @@ LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 int APIENTRY WinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev, _In_ LPSTR cmdLine, _In_ int showCmd)
 {
+	mutex = CreateMutexA(NULL, FALSE, "Force_Quit_MUTEX");
+	if (mutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
+		return 0;
+
 	//
 	//	Handle Debug switch
 	//
@@ -289,7 +296,7 @@ int APIENTRY WinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev, _In_ LPST
 		{
 			if (fg)
 			{
-				Sleep(20); //Wait to see if window will close normally
+				Sleep(100); //Wait a little to see if window will close normally
 
 				if (GetForegroundWindow() == fg)
 				{
@@ -318,7 +325,7 @@ int APIENTRY WinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev, _In_ LPST
 			fg = GetForegroundWindow();
 		}
 
-		Sleep(1); //Poll every 1ms
+		Sleep(10); //Poll at 100hz
 	}
 
 	Cleanup();
